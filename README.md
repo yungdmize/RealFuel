@@ -53,6 +53,10 @@ The texts follow the game's language: Russian when the game is in Russian, Engli
 powershell -ExecutionPolicy Bypass -File build.ps1 -Install
 ```
 
+## License
+
+[MIT](LICENSE).
+
 ---
 
 ## Русский
@@ -68,3 +72,5 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -Install
 **Установка через BeamNG.Earth:** Настройки → Add-ons → **Add from GitHub** → `yungdmize/RealFuel` → Install. Или вручную: `realfuel.zip` из [последнего релиза](../../releases/latest) в папку `mods`, старые копии (`realFuel.zip`, `realFuel-*.zip`) удалить.
 
 Язык выбирается по языку игры: русский, если игра на русском, иначе английский.
+
+Лицензия: [MIT](LICENSE).
