@@ -1,0 +1,22 @@
+{
+  "domElement": "<real-fuel></real-fuel>",
+  "name": "ui.apps.realFuel.name",
+  "types": [
+    "ui.apps.categories.vehicle_control"
+  ],
+  "description": "ui.apps.realFuel.description",
+  "css": {
+    "left": "20px",
+    "top": "300px",
+    "width": "260px",
+    "height": "270px",
+    "min-width": "220px",
+    "min-height": "40px"
+  },
+  "author": "realFuel",
+  "version": "1.2",
+  "directive": "realFuel",
+  "category": "Gameplay",
+  "isAuxiliary": false,
+  "interactive": "yes"
+}
