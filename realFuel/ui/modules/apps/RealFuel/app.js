@@ -84,6 +84,11 @@ angular.module('beamng.apps')
       <div class="rf-switch" ng-class="{'rf-on': settings.enabled}"></div>
       <span>{{ 'realFuel.noRefuel' | translate }}</span>
     </div>
+    <div class="rf-toggle" ng-if="!ui.collapsed && ui.tab === 'fuel'" ng-click="togglePerConfig()"
+         title="{{ 'realFuel.perConfig.hint' | translate }}">
+      <div class="rf-switch" ng-class="{'rf-on': settings.perConfig}"></div>
+      <span>{{ 'realFuel.perConfig' | translate }}</span>
+    </div>
 
     <!-- tab: statistics -->
     <div class="rf-grid" ng-if="!ui.collapsed && ui.tab === 'stats'">
@@ -112,7 +117,7 @@ angular.module('beamng.apps')
       const DASH = '—'
       const tr = $filter('translate')
 
-      $scope.settings = { enabled: true, emergencyLiters: 5 }
+      $scope.settings = { enabled: true, perConfig: true, emergencyLiters: 5 }
       $scope.ui = { collapsed: false, tab: 'fuel' }
       $scope.veh = null
       $scope.view = {}
@@ -196,6 +201,7 @@ angular.module('beamng.apps')
       $scope.refuelFull = function () { lua('refuelFull()') }
       $scope.resetTrip = function () { lua('resetTrip()') }
       $scope.toggle = function () { lua('toggleEnabled()') }
+      $scope.togglePerConfig = function () { lua('togglePerConfig()') }
 
       $scope.$on('RealFuelSettings', function (event, data) {
         if (!data) return

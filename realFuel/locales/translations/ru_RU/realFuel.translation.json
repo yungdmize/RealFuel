@@ -17,6 +17,8 @@
   "realFuel.fill.hint": "Заправить до полного бака",
   "realFuel.noRefuel": "Не заправлять при респавне",
   "realFuel.noRefuel.hint": "Вкл: после сброса (R) и перезагрузки (Ctrl+R) машина сохраняет текущий уровень топлива",
+  "realFuel.perConfig": "Помнить топливо каждого конфига",
+  "realFuel.perConfig.hint": "Вкл: у каждого конфига машины свой уровень топлива. Поездил на другой машине, вернулся к этой — в баке столько, сколько ты оставил",
 
   "realFuel.stats.now": "Сейчас",
   "realFuel.stats.average": "Средний",
@@ -46,5 +48,7 @@
   "realFuel.msg.noTank": "У этой машины нет топливного бака",
   "realFuel.msg.fillFuel": "Полная заправка: +{{liters}} л",
   "realFuel.msg.fillCharge": "Полная зарядка: +{{kwh}} кВт·ч",
-  "realFuel.msg.fillBoth": "Полная заправка: +{{liters}} л, +{{kwh}} кВт·ч"
+  "realFuel.msg.fillBoth": "Полная заправка: +{{liters}} л, +{{kwh}} кВт·ч",
+  "realFuel.msg.restoredFuel": "В баке этого конфига осталось: {{liters}} л",
+  "realFuel.msg.restoredCharge": "В батарее этого конфига осталось: {{kwh}} кВт·ч"
 }

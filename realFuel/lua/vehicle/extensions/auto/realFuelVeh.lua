@@ -1,6 +1,8 @@
 -- Real Fuel: keeps the fuel / battery level of a vehicle when it is reset (R)
 -- or reloaded (Ctrl+R) instead of refilling it to the starting value.
--- Also runs a small trip computer (consumption, range, distance...) for the player vehicle.
+-- Also runs a small trip computer (consumption, range, distance...) for the player vehicle,
+-- and remembers the fuel level per vehicle configuration (kept by the GE side, realFuel_main):
+-- a car spawned again later gets the fuel it had when the player last drove it.
 -- Loaded automatically into every vehicle (lua/vehicle/extensions/auto).
 
 local M = {}
@@ -21,10 +23,26 @@ local RANGE_WINDOW = 10000 -- m, range estimate uses roughly the last 10 km of d
 local RANGE_MIN_DISTANCE = 1000 -- m, driven distance needed before a range is estimated
 local MAX_SANE_SPEED = 150 -- m/s, ignore physics spikes for the max speed
 
+local MEMORY_REPORT_INTERVAL = 2 -- s, the player vehicle reports its levels to the GE side this often
+local MEMORY_CLAIM_DELAY = 1 -- s seated before asking: spawning resets the vehicle (spawn.safeTeleport) once more
+local MEMORY_WAIT_TIMEOUT = 3 -- s, start remembering anyway if the GE side does not answer
+local MEMORY_PROTECT = 3 -- s after a restore in which any reset keeps the restored level
+local MEMORY_MESSAGE_MIN = 0.05 -- L / kWh, smaller restores are not announced
+
 local enabled = true
 local pendingLevels = nil
 local pendingFrames = 0
 local stateTimer = 0
+
+-- per-configuration memory
+local perConfig = true
+local memoryState = "new" -- "new": not driven by the player yet, "waiting": asked the GE side, "active": reporting
+local memoryWait = 0
+local memorySeatedTime = 0
+local memoryProtect = 0
+local memoryReportTimer = 0
+local memoryLastTotal = nil
+local memoryWasSeated = false
 
 -- trip computer
 local function newTrip()
@@ -121,6 +139,71 @@ end
 -- AI traffic / police / opponents are left alone: they rely on resets to keep running
 local function isAiDriven()
   return not playerInfo.anyPlayerSeated and ai and ai.mode ~= nil and ai.mode ~= "disabled"
+end
+
+-- per-configuration memory ----------------------------------------------------------
+
+-- "model|vehicles/model/config.pc": what the remembered level belongs to
+-- (lower case, no leading slash: the same config is named "/vehicles/..." or "vehicles/..." depending on how it was spawned)
+local function configKey()
+  local dir = (v.data and v.data.vehicleDirectory) or ""
+  local model = dir:match("/vehicles/([^/]+)") or dir
+  local config = tostring((v.config and v.config.partConfigFilename) or ""):gsub("\\", "/"):gsub("^/+", "")
+  return string.lower(model .. "|" .. config)
+end
+
+local function reportLevels(force)
+  if not perConfig or memoryState ~= "active" then
+    return
+  end
+  local levels = captureLevels()
+  if not levels then
+    return
+  end
+  local total = 0
+  for _, l in pairs(levels) do
+    total = total + l.energy
+  end
+  if not force and memoryLastTotal and abs(total - memoryLastTotal) < 1 then
+    return -- unchanged (1 J is far below a millilitre)
+  end
+  memoryLastTotal = total
+  obj:queueGameEngineLua(string.format("if realFuel_main then realFuel_main.storeLevels(%q, %s) end", configKey(), serialize(levels)))
+end
+
+local function updateMemory(dt)
+  local seated = playerInfo.anyPlayerSeated
+  if memoryWasSeated and not seated then
+    reportLevels(true) -- the player got out or switched to another vehicle
+  end
+  memoryWasSeated = seated
+  if not perConfig or not seated then
+    memorySeatedTime = 0
+    return
+  end
+
+  if memoryState == "new" then
+    -- first time the player drives this vehicle since it was spawned: ask for its configuration's level,
+    -- once the spawn has settled (it resets the vehicle again when it places it)
+    memorySeatedTime = memorySeatedTime + dt
+    if memorySeatedTime < MEMORY_CLAIM_DELAY then
+      return
+    end
+    memoryState = "waiting"
+    memoryWait = 0
+    obj:queueGameEngineLua(string.format("if realFuel_main then realFuel_main.onVehicleSeated(%d, %q) end", obj:getId(), configKey()))
+  elseif memoryState == "waiting" then
+    memoryWait = memoryWait + dt
+    if memoryWait > MEMORY_WAIT_TIMEOUT then
+      memoryState = "active"
+    end
+  else
+    memoryReportTimer = memoryReportTimer - dt
+    if memoryReportTimer <= 0 then
+      memoryReportTimer = MEMORY_REPORT_INTERVAL
+      reportLevels(false)
+    end
+  end
 end
 
 -- trip computer -------------------------------------------------------------------
@@ -308,6 +391,7 @@ local function addFuel(liters)
   pendingLevels = nil
   skipSample = true
   sendState()
+  reportLevels(true)
 end
 
 -- fill every fuel tank and battery to capacity
@@ -348,14 +432,50 @@ local function fillUp()
   pendingLevels = nil
   skipSample = true
   sendState()
+  reportLevels(true)
 end
 
-local function setEnabled(value)
-  enabled = value and true or false
+-- the GE side's answer to onVehicleSeated: the level this configuration had (nil: nothing remembered)
+local function onRememberedLevels(levels)
+  if memoryState ~= "waiting" then
+    return
+  end
+  memoryState = "active"
+  memoryReportTimer = MEMORY_REPORT_INTERVAL
+  if perConfig and type(levels) == "table" then
+    local fuelBefore, _, batteryBefore = readLevels()
+    applyLevels(levels)
+    -- re-apply it for a few frames instead of whatever a reset just before captured (the spawn's full tank),
+    -- and keep it through any reset in the next seconds
+    pendingLevels = levels
+    pendingFrames = RESTORE_FRAMES
+    memoryProtect = MEMORY_PROTECT
+    skipSample = true
+    local fuel, fuelCapacity, battery, batteryCapacity = readLevels()
+    log("I", logTag, string.format("restored %s: fuel %.2f -> %.2f L, battery %.2f -> %.2f kWh", configKey(), fuelBefore, fuel, batteryBefore, battery))
+    if fuelCapacity > 0 and abs(fuel - fuelBefore) > MEMORY_MESSAGE_MIN then
+      showMessage("realFuel.msg.restoredFuel", {liters = string.format("%.1f", fuel)})
+    elseif fuelCapacity <= 0 and batteryCapacity > 0 and abs(battery - batteryBefore) > MEMORY_MESSAGE_MIN then
+      showMessage("realFuel.msg.restoredCharge", {kwh = string.format("%.1f", battery)})
+    end
+    sendState()
+  end
+  reportLevels(true)
+end
+
+local function setOptions(enabledValue, perConfigValue)
+  enabled = enabledValue and true or false
   if not enabled then
     pendingLevels = nil
   end
+  if perConfigValue ~= nil then
+    perConfig = perConfigValue and true or false
+  end
   sendState()
+end
+
+local function setEnabled(value)
+  setOptions(value, nil)
 end
 
 local function isEnabled()
@@ -368,9 +488,14 @@ end
 local function onReset()
   skipSample = true -- the reset changes the levels, don't count that as consumption
   speedEMA = 0
-  if not enabled or isAiDriven() then
+  -- right after a per-config restore a reset (the spawn placing the vehicle) must not refill it either
+  local keep = enabled or memoryProtect > 0
+  if not keep or isAiDriven() then
     pendingLevels = nil
     return
+  end
+  if memoryProtect > 0 then
+    log("I", logTag, "reset right after a per-config restore: fuel level kept")
   end
   -- if several resets happen before a frame passes, keep the first (real) snapshot
   if not pendingLevels then
@@ -389,7 +514,12 @@ local function updateGFX(dt)
     end
   end
 
+  if memoryProtect > 0 then
+    memoryProtect = memoryProtect - dt
+  end
+
   updateStats(dt)
+  updateMemory(dt)
 
   stateTimer = stateTimer - dt
   if stateTimer <= 0 then
@@ -398,12 +528,17 @@ local function updateGFX(dt)
   end
 end
 
--- Ctrl+R / part changes rebuild the vehicle Lua: carry the levels and the trip over
+-- Ctrl+R / part changes / replacing the vehicle rebuild the vehicle Lua: carry the levels and the trip over
+-- to the same configuration, and hand the last level of this configuration to the per-config memory
 local function onSerialize()
+  reportLevels(true)
   return {
     enabled = enabled,
+    perConfig = perConfig,
+    memoryState = memoryState,
     levels = (enabled and not isAiDriven()) and captureLevels() or nil,
     vehicleDirectory = v.data and v.data.vehicleDirectory,
+    configKey = configKey(),
     trip = trip,
     rangeUsed = rangeUsed,
     rangeDistance = rangeDistance
@@ -417,9 +552,22 @@ local function onDeserialize(data)
   if type(data.enabled) == "boolean" then
     enabled = data.enabled
   end
-  -- only restore into the same vehicle model, a freshly selected car starts fresh
-  if data.vehicleDirectory ~= (v.data and v.data.vehicleDirectory) then
+  if type(data.perConfig) == "boolean" then
+    perConfig = data.perConfig
+  end
+  -- only restore into the same configuration: another car (or config) gets its own remembered level
+  -- from the per-config memory when the player first drives it
+  local same
+  if type(data.configKey) == "string" then
+    same = data.configKey == configKey()
+  else
+    same = data.vehicleDirectory == (v.data and v.data.vehicleDirectory)
+  end
+  if not same then
     return
+  end
+  if data.memoryState == "active" or data.memoryState == "waiting" then
+    memoryState = "active" -- the same car reloaded: no need to ask the memory again
   end
   if enabled and type(data.levels) == "table" then
     pendingLevels = data.levels
@@ -451,7 +599,9 @@ M.onSerialize = onSerialize
 M.onDeserialize = onDeserialize
 
 M.setEnabled = setEnabled
+M.setOptions = setOptions
 M.isEnabled = isEnabled
+M.onRememberedLevels = onRememberedLevels
 M.addFuel = addFuel
 M.fillUp = fillUp
 M.resetTrip = resetTrip

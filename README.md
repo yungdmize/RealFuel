@@ -7,6 +7,7 @@ A BeamNG.drive mod that stops the free refuel on respawn, with a small fuel wind
 ## Features
 
 - **No free refuel on respawn.** After a reset (R), a reload (Ctrl+R) or a part change the vehicle keeps the fuel it had. A switch in the window turns this on and off; the setting is saved.
+- **Fuel remembered per config.** Every vehicle configuration keeps its own fuel level, also between game sessions: drive a pickup for a while, switch to a sports car, spawn the same pickup config again and it has the fuel you left in it. Only cars you drove are remembered (traffic is not), and it stays off in career, which has its own fuel. Its own switch in the window.
 - **Emergency refuel.** Adds 5 L (never more than the tank holds). Electric vehicles get 5 kWh.
 - **Fill up.** Fills every tank (or battery) to the top.
 - **Stats tab** (a trip computer):
@@ -43,7 +44,8 @@ The texts follow the game's language: Russian when the game is in Russian, Engli
 ## Notes
 
 - Made for freeroam on BeamNG.drive 0.40. Career has its own fuel system and was not tested.
-- Settings are kept in `settings/realFuel.json` in the user folder.
+- Settings are kept in `settings/realFuel.json` in the user folder, the remembered levels in `settings/realFuel_levels.json` (delete it to forget them all).
+- A configuration is the model plus its `.pc` file; two identical cars share one remembered level.
 
 ## Building
 
@@ -64,6 +66,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -Install
 Мод для BeamNG.drive: машина больше не заправляется бесплатно при респавне. Есть маленькое окно с экстренной заправкой 5 л, полным баком, расходом л/100 км и статистикой поездки.
 
 - **Без заправки при респавне.** После сброса (R), перезагрузки (Ctrl+R) и смены деталей машина сохраняет уровень топлива. Переключатель в окне, настройка запоминается.
+- **Топливо помнится для каждого конфига**, в том числе между запусками игры: поездил на пикапе, пересел на другую машину, заспавнил тот же конфиг пикапа — в баке столько, сколько оставил. Запоминаются только машины, на которых ты ездил (трафик нет); в карьере выключено, там своё топливо. Отдельный переключатель в окне, уровни хранятся в `settings/realFuel_levels.json`.
 - **Экстренно +5 л** (не больше объёма бака; электромобилям +5 кВт·ч) и **Полный бак**.
 - **Вкладка «Статистика»:** мгновенный и средний расход, расход в час, запас хода, пробег, время в пути, израсходовано, средняя и максимальная скорость, сколько долито кнопками. Кнопка «Сбросить поездку».
 - **Сворачивается** в одну строку: литры, полоска бака, запас хода.

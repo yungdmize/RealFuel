@@ -17,6 +17,8 @@
   "realFuel.fill.hint": "Fill the tank to the top",
   "realFuel.noRefuel": "No refuel on respawn",
   "realFuel.noRefuel.hint": "On: after a reset (R) or a reload (Ctrl+R) the vehicle keeps its current fuel level",
+  "realFuel.perConfig": "Remember fuel per config",
+  "realFuel.perConfig.hint": "On: every vehicle configuration keeps its own fuel level. Drive another car, come back to this one, and it has the fuel you left in it",
 
   "realFuel.stats.now": "Now",
   "realFuel.stats.average": "Average",
@@ -46,5 +48,7 @@
   "realFuel.msg.noTank": "This vehicle has no fuel tank",
   "realFuel.msg.fillFuel": "Filled up: +{{liters}} L",
   "realFuel.msg.fillCharge": "Charged: +{{kwh}} kWh",
-  "realFuel.msg.fillBoth": "Filled up: +{{liters}} L, +{{kwh}} kWh"
+  "realFuel.msg.fillBoth": "Filled up: +{{liters}} L, +{{kwh}} kWh",
+  "realFuel.msg.restoredFuel": "Fuel left in this config: {{liters}} L",
+  "realFuel.msg.restoredCharge": "Charge left in this config: {{kwh}} kWh"
 }
