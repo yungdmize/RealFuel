@@ -28,6 +28,8 @@ angular.module('beamng.apps')
     .rf-icon-btn { flex: none; width: 22px; height: 22px; padding: 0; margin: 0; border: none; border-radius: 4px; background: none; color: rgba(255, 255, 255, 0.75); cursor: pointer; display: flex; align-items: center; justify-content: center; }
     .rf-icon-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
     .rf-icon-btn svg { width: 14px; height: 14px; }
+    .rf-unit-btn { flex: none; height: 20px; padding: 0 6px; margin: 0; border: 1px solid rgba(255, 255, 255, 0.25); border-radius: 4px; background: none; color: rgba(255, 255, 255, 0.75); font-size: 11px; line-height: 18px; cursor: pointer; white-space: nowrap; }
+    .rf-unit-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
     .rf-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; }
     .rf-switch { position: relative; flex: none; width: 28px; height: 16px; border-radius: 8px; background: rgba(255, 255, 255, 0.25); transition: background 0.2s; }
     .rf-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.2s; }
@@ -60,6 +62,7 @@ angular.module('beamng.apps')
       <button class="rf-tab" ng-class="{'rf-active': ui.tab === 'fuel'}" ng-click="setTab('fuel')">{{ 'realFuel.tab.fuel' | translate }}</button>
       <button class="rf-tab" ng-class="{'rf-active': ui.tab === 'stats'}" ng-click="setTab('stats')">{{ 'realFuel.tab.stats' | translate }}</button>
       <span class="rf-spacer"></span>
+      <button class="rf-unit-btn" ng-click="toggleUnits()" title="{{ 'realFuel.units.hint' | translate }}">{{ view.unitsLabel }}</button>
       <button class="rf-icon-btn" ng-click="setCollapsed(true)" title="{{ 'realFuel.collapse' | translate }}">
         <svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -114,10 +117,14 @@ angular.module('beamng.apps')
     scope: true,
     controller: ['$scope', '$filter', '$rootScope', function ($scope, $filter, $rootScope) {
       const BATTERY_EMERGENCY_KWH = 5 // must match realFuelVeh.lua
+      const L_PER_GAL = 3.785411784 // US gallon
+      const KM_PER_MI = 1.609344
+      const MPG_PER_INV_L100 = 235.2145833 // mpg = this / (L/100 km)
+      const MPG_MAX = 999 // shown as "999+" above this (coasting with the fuel cut)
       const DASH = '—'
       const tr = $filter('translate')
 
-      $scope.settings = { enabled: true, perConfig: true, emergencyLiters: 5 }
+      $scope.settings = { enabled: true, perConfig: true, units: 'metric', emergencyLiters: 5, emergencyGallons: 1.5 }
       $scope.ui = { collapsed: false, tab: 'fuel' }
       $scope.veh = null
       $scope.view = {}
@@ -141,14 +148,31 @@ angular.module('beamng.apps')
         const hasFuel = veh.fuelCapacity > 0
         const hasBattery = !hasFuel && veh.batteryCapacity > 0
         const v = { hasTank: hasFuel || hasBattery }
+        const imp = $scope.settings.units === 'imperial'
 
-        const u = tr(hasBattery ? 'realFuel.unit.kwh' : 'realFuel.unit.l')
-        const km = tr('realFuel.unit.km')
-        const kmh = tr('realFuel.unit.kmh')
-        const per100 = tr('realFuel.unit.per100', { unit: u })
-        const level = hasFuel ? veh.fuel : (hasBattery ? veh.battery : 0)
-        const capacity = hasFuel ? veh.fuelCapacity : (hasBattery ? veh.batteryCapacity : 0)
+        // the vehicle reports liters / kWh, meters, m/s and per-100-km values; batteries stay in kWh
+        const energy = x => (imp && !hasBattery) ? x / L_PER_GAL : x
+        const dist = km => imp ? km / KM_PER_MI : km
+        const speed = ms => Math.round((ms || 0) * (imp ? 3.6 / KM_PER_MI : 3.6))
 
+        const u = tr(hasBattery ? 'realFuel.unit.kwh' : (imp ? 'realFuel.unit.gal' : 'realFuel.unit.l'))
+        const du = tr(imp ? 'realFuel.unit.mi' : 'realFuel.unit.km')
+        const su = tr(imp ? 'realFuel.unit.mph' : 'realFuel.unit.kmh')
+        const per100 = tr(imp ? 'realFuel.unit.per100mi' : 'realFuel.unit.per100', { unit: u })
+
+        // consumption given in L (or kWh) per 100 km
+        function consumption (per100km) {
+          if (imp && !hasBattery) {
+            const mpg = per100km > 0 ? MPG_PER_INV_L100 / per100km : Infinity
+            return (mpg > MPG_MAX ? MPG_MAX + '+' : num(mpg, 1)) + ' ' + tr('realFuel.unit.mpg')
+          }
+          return num(imp ? per100km * KM_PER_MI : per100km, 1) + ' ' + per100
+        }
+
+        const level = energy(hasFuel ? veh.fuel : (hasBattery ? veh.battery : 0))
+        const capacity = energy(hasFuel ? veh.fuelCapacity : (hasBattery ? veh.batteryCapacity : 0))
+
+        v.unitsLabel = tr(imp ? 'realFuel.units.imperial' : 'realFuel.units.metric')
         v.title = tr(hasBattery ? 'realFuel.battery' : 'realFuel.fuel')
         v.ratio = capacity > 0 ? Math.min(Math.max(level / capacity, 0), 1) : 0
         v.low = v.hasTank && v.ratio < 0.1
@@ -157,20 +181,23 @@ angular.module('beamng.apps')
         v.emergencyLabel = tr('realFuel.emergency', {
           amount: hasBattery
             ? '+' + BATTERY_EMERGENCY_KWH + ' ' + tr('realFuel.unit.kwh')
-            : '+' + $scope.settings.emergencyLiters + ' ' + tr('realFuel.unit.l')
+            : imp
+              ? '+' + $scope.settings.emergencyGallons + ' ' + tr('realFuel.unit.gal')
+              : '+' + $scope.settings.emergencyLiters + ' ' + tr('realFuel.unit.l')
         })
         v.fullLabel = tr(hasBattery ? 'realFuel.charge' : 'realFuel.fill')
 
-        v.instant = typeof st.instant === 'number' ? num(st.instant, 1) + ' ' + per100 : tr('realFuel.stats.standing')
-        v.average = typeof st.average === 'number' ? num(st.average, 1) + ' ' + per100 : DASH
-        v.flow = num(st.flow, 2) + ' ' + tr(hasBattery ? 'realFuel.unit.kw' : 'realFuel.unit.lph')
-        v.range = typeof st.range === 'number' ? '≈ ' + Math.round(st.range) + ' ' + km : DASH
-        v.rangeShort = typeof st.range === 'number' ? '≈ ' + Math.round(st.range) + ' ' + km : ''
-        v.distance = num((st.distance || 0) / 1000, 1) + ' ' + km
+        const range = typeof st.range === 'number' ? '≈ ' + Math.round(dist(st.range)) + ' ' + du : null
+        v.instant = typeof st.instant === 'number' ? consumption(st.instant) : tr('realFuel.stats.standing')
+        v.average = typeof st.average === 'number' ? consumption(st.average) : DASH
+        v.flow = num(energy(st.flow), 2) + ' ' + tr(hasBattery ? 'realFuel.unit.kw' : (imp ? 'realFuel.unit.galph' : 'realFuel.unit.lph'))
+        v.range = range || DASH
+        v.rangeShort = range || ''
+        v.distance = num(dist((st.distance || 0) / 1000), 1) + ' ' + du
         v.time = duration(st.time)
-        v.used = num(st.used || 0, 2) + ' ' + u
-        v.speed = Math.round((st.avgSpeed || 0) * 3.6) + ' / ' + Math.round((st.maxSpeed || 0) * 3.6) + ' ' + kmh
-        v.added = num(st.added || 0, 1) + ' ' + u
+        v.used = num(energy(st.used || 0), 2) + ' ' + u
+        v.speed = speed(st.avgSpeed) + ' / ' + speed(st.maxSpeed) + ' ' + su
+        v.added = num(energy(st.added || 0), 1) + ' ' + u
 
         $scope.view = v
       }
@@ -202,6 +229,7 @@ angular.module('beamng.apps')
       $scope.resetTrip = function () { lua('resetTrip()') }
       $scope.toggle = function () { lua('toggleEnabled()') }
       $scope.togglePerConfig = function () { lua('togglePerConfig()') }
+      $scope.toggleUnits = function () { lua('toggleUnits()') }
 
       $scope.$on('RealFuelSettings', function (event, data) {
         if (!data) return

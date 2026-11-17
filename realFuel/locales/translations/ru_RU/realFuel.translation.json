@@ -19,6 +19,9 @@
   "realFuel.noRefuel.hint": "Вкл: после сброса (R) и перезагрузки (Ctrl+R) машина сохраняет текущий уровень топлива",
   "realFuel.perConfig": "Помнить топливо каждого конфига",
   "realFuel.perConfig.hint": "Вкл: у каждого конфига машины свой уровень топлива. Поездил на другой машине, вернулся к этой — в баке столько, сколько ты оставил",
+  "realFuel.units.metric": "км · л",
+  "realFuel.units.imperial": "мили · гал",
+  "realFuel.units.hint": "Единицы: нажми, чтобы переключить метрические (км, л, л/100 км) и имперские (мили, галлоны США, мили на галлон)",
 
   "realFuel.stats.now": "Сейчас",
   "realFuel.stats.average": "Средний",
@@ -40,6 +43,12 @@
   "realFuel.unit.kmh": "км/ч",
   "realFuel.unit.lph": "л/ч",
   "realFuel.unit.per100": "{{unit}}/100 км",
+  "realFuel.unit.gal": "гал",
+  "realFuel.unit.mi": "миль",
+  "realFuel.unit.mph": "миль/ч",
+  "realFuel.unit.galph": "гал/ч",
+  "realFuel.unit.mpg": "миль/гал",
+  "realFuel.unit.per100mi": "{{unit}}/100 миль",
 
   "realFuel.msg.emergencyFuel": "Экстренная заправка: +{{amount}} л",
   "realFuel.msg.emergencyCharge": "Экстренная зарядка: +{{amount}} кВт·ч",
@@ -50,5 +59,9 @@
   "realFuel.msg.fillCharge": "Полная зарядка: +{{kwh}} кВт·ч",
   "realFuel.msg.fillBoth": "Полная заправка: +{{liters}} л, +{{kwh}} кВт·ч",
   "realFuel.msg.restoredFuel": "В баке этого конфига осталось: {{liters}} л",
-  "realFuel.msg.restoredCharge": "В батарее этого конфига осталось: {{kwh}} кВт·ч"
+  "realFuel.msg.restoredCharge": "В батарее этого конфига осталось: {{kwh}} кВт·ч",
+  "realFuel.msg.emergencyFuelGal": "Экстренная заправка: +{{amount}} гал",
+  "realFuel.msg.fillFuelGal": "Полная заправка: +{{liters}} гал",
+  "realFuel.msg.fillBothGal": "Полная заправка: +{{liters}} гал, +{{kwh}} кВт·ч",
+  "realFuel.msg.restoredFuelGal": "В баке этого конфига осталось: {{liters}} гал"
 }

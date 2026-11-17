@@ -19,6 +19,9 @@
   "realFuel.noRefuel.hint": "On: after a reset (R) or a reload (Ctrl+R) the vehicle keeps its current fuel level",
   "realFuel.perConfig": "Remember fuel per config",
   "realFuel.perConfig.hint": "On: every vehicle configuration keeps its own fuel level. Drive another car, come back to this one, and it has the fuel you left in it",
+  "realFuel.units.metric": "km · L",
+  "realFuel.units.imperial": "mi · gal",
+  "realFuel.units.hint": "Units: click to switch between metric (km, L, L/100 km) and imperial (miles, US gallons, mpg)",
 
   "realFuel.stats.now": "Now",
   "realFuel.stats.average": "Average",
@@ -40,6 +43,12 @@
   "realFuel.unit.kmh": "km/h",
   "realFuel.unit.lph": "L/h",
   "realFuel.unit.per100": "{{unit}}/100 km",
+  "realFuel.unit.gal": "gal",
+  "realFuel.unit.mi": "mi",
+  "realFuel.unit.mph": "mph",
+  "realFuel.unit.galph": "gal/h",
+  "realFuel.unit.mpg": "mpg",
+  "realFuel.unit.per100mi": "{{unit}}/100 mi",
 
   "realFuel.msg.emergencyFuel": "Emergency refuel: +{{amount}} L",
   "realFuel.msg.emergencyCharge": "Emergency charge: +{{amount}} kWh",
@@ -50,5 +59,9 @@
   "realFuel.msg.fillCharge": "Charged: +{{kwh}} kWh",
   "realFuel.msg.fillBoth": "Filled up: +{{liters}} L, +{{kwh}} kWh",
   "realFuel.msg.restoredFuel": "Fuel left in this config: {{liters}} L",
-  "realFuel.msg.restoredCharge": "Charge left in this config: {{kwh}} kWh"
+  "realFuel.msg.restoredCharge": "Charge left in this config: {{kwh}} kWh",
+  "realFuel.msg.emergencyFuelGal": "Emergency refuel: +{{amount}} gal",
+  "realFuel.msg.fillFuelGal": "Filled up: +{{liters}} gal",
+  "realFuel.msg.fillBothGal": "Filled up: +{{liters}} gal, +{{kwh}} kWh",
+  "realFuel.msg.restoredFuelGal": "Fuel left in this config: {{liters}} gal"
 }

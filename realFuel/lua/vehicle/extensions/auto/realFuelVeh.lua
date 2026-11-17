@@ -15,6 +15,7 @@ local STATE_INTERVAL = 0.5 -- seconds between UI state updates for the player ve
 local RESTORE_FRAMES = 3 -- re-apply the saved level for a few frames after a reset
 local BATTERY_EMERGENCY_KWH = 5 -- emergency charge for electric vehicles without a fuel tank
 local J_PER_KWH = 3600000
+local L_PER_GAL = 3.785411784 -- US gallon, for the messages with imperial units
 
 local EMA_TAU = 1.5 -- seconds, smoothing of the instant consumption
 local MOVING_SPEED = 1 -- m/s, below this the vehicle counts as standing
@@ -30,6 +31,7 @@ local MEMORY_PROTECT = 3 -- s after a restore in which any reset keeps the resto
 local MEMORY_MESSAGE_MIN = 0.05 -- L / kWh, smaller restores are not announced
 
 local enabled = true
+local units = "metric" -- "metric" or "imperial": only changes how the fuel amounts in the messages are written
 local pendingLevels = nil
 local pendingFrames = 0
 local stateTimer = 0
@@ -329,6 +331,15 @@ local function showMessage(key, context)
   guihooks.message({txt = key, context = context or {}}, 4, "realFuel")
 end
 
+-- messages with a fuel amount: the "...Gal" key and gallons with imperial units
+local function fuelKey(key)
+  return units == "imperial" and key .. "Gal" or key
+end
+
+local function fuelText(liters)
+  return string.format("%.1f", units == "imperial" and liters / L_PER_GAL or liters)
+end
+
 -- add fuel (liters) to the fuel tanks; EVs without a tank get a small charge instead
 local function addFuel(liters)
   liters = max(tonumber(liters) or 0, 0)
@@ -355,7 +366,7 @@ local function addFuel(liters)
     end
     if added > 0.01 then
       trip.added = trip.added + added
-      showMessage("realFuel.msg.emergencyFuel", {amount = string.format("%.1f", added)})
+      showMessage(fuelKey("realFuel.msg.emergencyFuel"), {amount = fuelText(added)})
     else
       showMessage("realFuel.msg.tankFull")
     end
@@ -416,11 +427,11 @@ local function fillUp()
   if not found then
     showMessage("realFuel.msg.noTank")
   elseif liters > 0.01 or kwh > 0.01 then
-    local context = {liters = string.format("%.1f", liters), kwh = string.format("%.1f", kwh)}
+    local context = {liters = fuelText(liters), kwh = string.format("%.1f", kwh)}
     if liters > 0.01 and kwh > 0.01 then
-      showMessage("realFuel.msg.fillBoth", context)
+      showMessage(fuelKey("realFuel.msg.fillBoth"), context)
     elseif liters > 0.01 then
-      showMessage("realFuel.msg.fillFuel", context)
+      showMessage(fuelKey("realFuel.msg.fillFuel"), context)
     else
       showMessage("realFuel.msg.fillCharge", context)
     end
@@ -454,7 +465,7 @@ local function onRememberedLevels(levels)
     local fuel, fuelCapacity, battery, batteryCapacity = readLevels()
     log("I", logTag, string.format("restored %s: fuel %.2f -> %.2f L, battery %.2f -> %.2f kWh", configKey(), fuelBefore, fuel, batteryBefore, battery))
     if fuelCapacity > 0 and abs(fuel - fuelBefore) > MEMORY_MESSAGE_MIN then
-      showMessage("realFuel.msg.restoredFuel", {liters = string.format("%.1f", fuel)})
+      showMessage(fuelKey("realFuel.msg.restoredFuel"), {liters = fuelText(fuel)})
     elseif fuelCapacity <= 0 and batteryCapacity > 0 and abs(battery - batteryBefore) > MEMORY_MESSAGE_MIN then
       showMessage("realFuel.msg.restoredCharge", {kwh = string.format("%.1f", battery)})
     end
@@ -463,13 +474,16 @@ local function onRememberedLevels(levels)
   reportLevels(true)
 end
 
-local function setOptions(enabledValue, perConfigValue)
+local function setOptions(enabledValue, perConfigValue, unitsValue)
   enabled = enabledValue and true or false
   if not enabled then
     pendingLevels = nil
   end
   if perConfigValue ~= nil then
     perConfig = perConfigValue and true or false
+  end
+  if unitsValue == "metric" or unitsValue == "imperial" then
+    units = unitsValue
   end
   sendState()
 end
@@ -535,6 +549,7 @@ local function onSerialize()
   return {
     enabled = enabled,
     perConfig = perConfig,
+    units = units,
     memoryState = memoryState,
     levels = (enabled and not isAiDriven()) and captureLevels() or nil,
     vehicleDirectory = v.data and v.data.vehicleDirectory,
@@ -554,6 +569,9 @@ local function onDeserialize(data)
   end
   if type(data.perConfig) == "boolean" then
     perConfig = data.perConfig
+  end
+  if data.units == "metric" or data.units == "imperial" then
+    units = data.units
   end
   -- only restore into the same configuration: another car (or config) gets its own remembered level
   -- from the per-config memory when the player first drives it

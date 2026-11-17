@@ -25,6 +25,7 @@ A BeamNG.drive mod that stops the free refuel on respawn, with a small fuel wind
   | Added by buttons | fuel added with Emergency and Fill up |
 
   **Reset trip** clears everything except the range, which keeps its own history.
+- **Metric or imperial units.** The `km · L` / `mi · gal` button next to the tabs switches between km, liters, L/100 km, km/h and miles, US gallons, mpg, mph. With imperial units the emergency refuel adds 1.5 gal. Batteries stay in kWh (kWh/100 mi). The choice is saved.
 - **Collapsible.** The arrow in the corner folds the window into one line: fuel, a small gauge and the range.
 - Traffic, police and AI opponents are left alone, so they never run dry.
 - Electric vehicles show kWh and kWh/100 km. Regenerative braking lowers the consumption.
@@ -69,6 +70,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1 -Install
 - **Топливо помнится для каждого конфига**, в том числе между запусками игры: поездил на пикапе, пересел на другую машину, заспавнил тот же конфиг пикапа — в баке столько, сколько оставил. Запоминаются только машины, на которых ты ездил (трафик нет); в карьере выключено, там своё топливо. Отдельный переключатель в окне, уровни хранятся в `settings/realFuel_levels.json`.
 - **Экстренно +5 л** (не больше объёма бака; электромобилям +5 кВт·ч) и **Полный бак**.
 - **Вкладка «Статистика»:** мгновенный и средний расход, расход в час, запас хода, пробег, время в пути, израсходовано, средняя и максимальная скорость, сколько долито кнопками. Кнопка «Сбросить поездку».
+- **Метрические или имперские единицы.** Кнопка `км · л` / `мили · гал` рядом с вкладками: км, литры, л/100 км, км/ч или мили, галлоны США, мили на галлон, миль/ч. В имперских экстренная заправка добавляет 1,5 гал. Батарея остаётся в кВт·ч. Выбор запоминается.
 - **Сворачивается** в одну строку: литры, полоска бака, запас хода.
 - Трафик, полицию и AI-соперников мод не трогает.
 

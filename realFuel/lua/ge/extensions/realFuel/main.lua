@@ -11,14 +11,18 @@ local settingsPath = "/settings/realFuel.json"
 local levelsPath = "/settings/realFuel_levels.json"
 
 local validTabs = {fuel = true, stats = true}
+local validUnits = {metric = true, imperial = true}
 
 local MAX_CONFIGS = 300 -- remembered configurations, the oldest are dropped
 local SAVE_DELAY = 10 -- s, remembered levels are written at most this often
+local L_PER_GAL = 3.785411784 -- US gallon
 
 local settings = {
   enabled = true, -- true = no free refuel on reset
   perConfig = true, -- true = remember the fuel level of every vehicle configuration
-  emergencyLiters = 5,
+  units = "metric", -- "metric" (km, L, L/100 km) or "imperial" (mi, US gal, mpg)
+  emergencyLiters = 5, -- emergency refuel with metric units
+  emergencyGallons = 1.5, -- emergency refuel with imperial units
   uiCollapsed = false,
   uiTab = "fuel"
 }
@@ -39,8 +43,14 @@ local function loadSettings()
   if type(data.perConfig) == "boolean" then
     settings.perConfig = data.perConfig
   end
+  if validUnits[data.units] then
+    settings.units = data.units
+  end
   if type(data.emergencyLiters) == "number" and data.emergencyLiters > 0 then
     settings.emergencyLiters = data.emergencyLiters
+  end
+  if type(data.emergencyGallons) == "number" and data.emergencyGallons > 0 then
+    settings.emergencyGallons = data.emergencyGallons
   end
   if type(data.uiCollapsed) == "boolean" then
     settings.uiCollapsed = data.uiCollapsed
@@ -131,7 +141,9 @@ local function sendSettings()
   guihooks.trigger("RealFuelSettings", {
     enabled = settings.enabled,
     perConfig = settings.perConfig,
+    units = settings.units,
     emergencyLiters = settings.emergencyLiters,
+    emergencyGallons = settings.emergencyGallons,
     uiCollapsed = settings.uiCollapsed,
     uiTab = settings.uiTab
   })
@@ -139,8 +151,8 @@ end
 
 local function pushToVehicle(veh)
   if veh then
-    veh:queueLuaCommand(string.format("if realFuelVeh then realFuelVeh.setOptions(%s, %s) end",
-      tostring(settings.enabled), tostring(settings.perConfig)))
+    veh:queueLuaCommand(string.format("if realFuelVeh then realFuelVeh.setOptions(%s, %s, %q) end",
+      tostring(settings.enabled), tostring(settings.perConfig), settings.units))
   end
 end
 
@@ -219,6 +231,21 @@ local function togglePerConfig()
   setPerConfig(not settings.perConfig)
 end
 
+local function setUnits(value)
+  if not validUnits[value] then
+    return
+  end
+  settings.units = value
+  saveSettings()
+  pushToAllVehicles()
+  sendSettings()
+  log("I", logTag, "units: " .. value)
+end
+
+local function toggleUnits()
+  setUnits(settings.units == "imperial" and "metric" or "imperial")
+end
+
 local function forgetRemembered()
   remembered = {}
   saveRemembered()
@@ -237,7 +264,8 @@ local function setUiState(collapsed, tab)
 end
 
 local function refuelEmergency()
-  playerVehicleCommand(string.format("if realFuelVeh then realFuelVeh.addFuel(%.3f) end", settings.emergencyLiters))
+  local liters = settings.units == "imperial" and settings.emergencyGallons * L_PER_GAL or settings.emergencyLiters
+  playerVehicleCommand(string.format("if realFuelVeh then realFuelVeh.addFuel(%.3f) end", liters))
 end
 
 local function refuelFull()
@@ -260,8 +288,8 @@ local function onExtensionLoaded()
   loadRemembered()
   pushToAllVehicles()
   sendSettings()
-  log("I", logTag, string.format("loaded, no refuel on reset: %s, remember per config: %s",
-    tostring(settings.enabled), tostring(settings.perConfig)))
+  log("I", logTag, string.format("loaded, no refuel on reset: %s, remember per config: %s, units: %s",
+    tostring(settings.enabled), tostring(settings.perConfig), settings.units))
 end
 
 local function onExtensionUnloaded()
@@ -309,6 +337,8 @@ M.toggleEnabled = toggleEnabled
 M.isEnabled = isEnabled
 M.setPerConfig = setPerConfig
 M.togglePerConfig = togglePerConfig
+M.setUnits = setUnits
+M.toggleUnits = toggleUnits
 M.forgetRemembered = forgetRemembered
 M.setUiState = setUiState
 M.refuelEmergency = refuelEmergency
